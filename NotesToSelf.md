@@ -1,5 +1,5 @@
 # Where is the data
-- Check you dropbox 
+- In your dropbox 
 
 # Pending Tasks
 - Create Documentation. Upload it here and email it to the advisor.
