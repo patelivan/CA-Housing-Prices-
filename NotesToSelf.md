@@ -2,5 +2,30 @@
 - In your dropbox 
 
 # Pending Tasks
-- Create Documentation. Upload it here and email it to the advisor.
-- Read about Fixed Effects 
+- Read about Fixed Effects
+
+# Description of each .R file
+
+#### Census Data Collection.R is 
+- Using the Census API, it gathers data from the American Community Survey 5-year estimates for each CA census tracts from the year 2010 to 2018. 
+  
+  Here are the following variables:
+  
+  <b>median.housing.value (B25077_001)</b>: Estimate of the median housing values
+  
+  <b>median.household.income (B19013_001)</b>: Estimate of the median household income in the past 12 months (IN 2018 Inflation-adjusted dollars)
+  
+  <b>population (B02001_001)</b>: Total Population
+  
+  <b>total.owner.occupied.housing.units (B25012_002)</b>: Total Owner-occupied housing units
+  
+  <b>total.renter.occupied.housing.units (B25012_010)</b>: Total Renter-occupied housing units
+  
+  <b>median.age (B01002_001)</b>: Median Age
+  
+  <b>median.number.rooms (B25021_002)</b>: Median number of rooms in Owner occupied househols
+  
+  <b>median.year.built (B25037_002)</b>: Median year structure built - Owner occupied
+  
+  
+ 
