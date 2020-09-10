@@ -1,4 +1,4 @@
-# Why is housing in California Costly? Comparing pricing disparities, Economic Trends, and Public Policy across States. A Spatial approach
+# Why is California housing so costly? Comparing pricing disparities, economic trends, and public policy across states. A spatial approach
 
 Median home prices in CA continue to increase, which makes it harder for people to buy and afford homes (Khouri, 2019). More importantly, the state's ability to attract talented workers from other parts of the U.S has decreased. Although businesses and people are not satisfied with CA's high taxes, I expect Housing to play a significant role in people's decisions to stay in or move out of CA (Malas, 2019). 
 Some, such as the California Association of Realtors have shown housing prices are high that because of tighter supply as permits of new housing units has not kept up with HCD estimates (Young, p.46-55), and new jobs (Young, p.48). Thus, it is not a surprise that people making $100,000 or less have migrated out of CA (Young, p.68, and p.70). 
@@ -28,10 +28,6 @@ What is CA’s economic outlook? How strong has job growth, unemployment, consum
 ## Public Policy
 
 Why did CA cities not issue the needed permits? Why was the number of building permits different in other states? Were there any other factors that led to houses not being built in CA over the years? Are there alternative explanations of the housing trends?
-
-
-
-
 
 
 ## References
