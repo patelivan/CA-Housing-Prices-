@@ -1,0 +1,116 @@
+---
+title: "Exploratory Data Analysis - CA Housing Data and Relevant Variables"
+subtitle: "2010 - 2018"
+author: "Ivan Patel"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tufte)
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
+```
+
+# Introduction
+Before I can run a multiple linear regression on median housing values, I will explore, visualize, and understand my data. Before building any model, one has to make important decisions about missing values, and how to handle outliers. In my case, I must also check that the data meets all the assumptions of a linear regression. ^[[Assumptions of Linear regression](http://r-statistics.co/Assumptions-of-Linear-Regression.html)]
+
+I will search answers to my initial questions by visualizing, transforming, and modeling my data. I will also use what I learned to generate new questions about the data. The point of Exploratory Data Analysis is to uncovering the structure of my data, and ensure that it contains good information before making our model. 
+
+## Checking the distribution of housing values and median income
+Housing value estimate will be my model's dependent or the response variable. I suspect that its distribution is skewed to the right. 
+
+```{r, include=F, echo = F}
+library(tidycensus)
+library(stringr)
+library(mapview)
+library(tidyverse)
+library(tigris)
+library(sf)
+
+ca_data <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/data/ca_data.shp')
+```
+
+```{r, echo=F, fig.height=9, fig.width=11}
+# Changing the names
+names(ca_data)[3:18] <- c("median.housing.value.estimate", "median.housing.value.moe",
+    "median.household.income.estimate", "median.household.income.moe",
+    "population.estimate", "population.moe", "total.owner.occupied.housing.units.estimate",
+    "total.owner.occupied.housing.units.moe", 'total.renter.occupied.housing.units.estimate', 
+    'total.renter.occupied.housing.units.moe',
+    'median.age.estimate','median.age.moe' ,'median.number.rooms.estimate', 'median.number.rooms.moe',
+    'median.year.built.estimate', 'median.year.built.moe'
+    )
+
+# Histogram of housing values and median income
+hist(ca_data$median.housing.value.estimate, 
+     main = 'Histogram of housing value estimates by Census Tracts (2010 - 2018)', 
+     labels = T,
+     xlab = 'Values', ylab = 'Count')
+
+summary(ca_data$median.housing.value.estimate)
+```
+The histogram does show that housing value estimates is skewed to the right. Given the 75th percentile, about 25% of our observations are census tracts whose housing value estimate exceeds $589,600.
+
+Similarly, median household income by census tracts is also skewed to the right. 
+```{r, echo=F, fig.height=10, fig.width=13, ppi = 600}
+
+hist(ca_data$median.household.income.estimate, 
+     main = 'Median HH Income by Census Tracts (2010-2018)', 
+     labels = T, 
+     xlab = 'Household Income', ylab = 'Count')
+
+summary(ca_data$median.household.income.estimate)
+```
+
+Thus, lets reduce the skewness of both variables by taking the natural log of estimates.
+```{r, fig.height=7, fig.width=11, echo=F}
+# Housing Values 
+hist(log(ca_data$median.housing.value.estimate), 
+     main = 'Histogram of Log housing value estimates by Census Tracts',
+     labels = T,
+     xlab = 'Log Values', ylab = 'Count')
+
+summary(log(ca_data$median.housing.value.estimate))
+```
+Although the histogram of the log estimate is slightly skewed to the left, the range did decrease significantly
+
+We can do the same log transformation to the median household income by census tract 
+```{r, fig.height=7, fig.width=11, echo=F}
+# Household Income
+hist(log(ca_data$median.household.income.estimate), 
+     main = 'Median HH Income by Census Tracts (2010-2018)', 
+     labels = T,
+     xlab = 'Log Household Income', ylab = 'Count')
+
+summary(log(ca_data$median.household.income.estimate))
+```
+
+We can look at a scatter plot of log median housing values v. log median household income to check linearity. ^[[Scatter Plot Dashboard ](https://public.tableau.com/profile/ivan.patel#!/vizhome/HoseholdValuevHouseholdIncomeforCACensusTracts2010-2018/Dashboard1?publish=yes). There are two charts on this dashboard. The top one shows the scatter plot of log housing values v log household income for a given year between 2010 and 2018. The bottom chart is a plot of just housing values v household income for a given year.]
+
+## An important thing to note about the scatter plots
+The table below shows what was the maximum housing value in each year. From 2010 - 2014, the values have an upper-bound of $1,000,001. 
+![](/Users/ivanpatel/Desktop/School/Senior Project/image1.png)
+
+And from 2015 - 2018, the upper-bound is $2,000,001. 
+Similarly, every year's max median household income by census tract also has an upper-bound of $250,001 
+
+#### What types of problems can top-coding variables cause in linear regression?
+
+# Pair wise plots
+^[[Scatter Plot Matrix Dashboard](https://public.tableau.com/profile/ivan.patel#!/vizhome/ScatterPlotMatrix-HousingValuesandothervaribales-CACensusTracts2010-2018/Dashboard1?publish=yes)]
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
