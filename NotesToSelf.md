@@ -35,5 +35,20 @@
   
   The goal of this scatter plot matrix is to check whether or not there is a linear relationship between median housing values and the independent variables, and whether or not the some independent variables are related with one another. 
   
+ ###### Things to note:
+ Median Housing value and Median Household Income are linearly related.
+ Plot of median Housing value and year built appear to be random. 
+ 
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
    
