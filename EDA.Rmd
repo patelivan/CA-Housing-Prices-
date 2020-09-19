@@ -1,25 +1,12 @@
 ---
-title: "Exploratory Data Analysis - CA Housing Data and Relevant Variables"
-subtitle: "2010 - 2018"
+title: "Untitled"
 author: "Ivan Patel"
-date: "`r Sys.Date()`"
-output:
-  tufte::tufte_html: default
-  tufte::tufte_handout:
-    citation_package: natbib
-    latex_engine: xelatex
-  tufte::tufte_book:
-    citation_package: natbib
-    latex_engine: xelatex
-bibliography: skeleton.bib
-link-citations: yes
+date: "9/19/2020"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
-library(tufte)
-# invalidate cache when the tufte version changes
-knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tufte'))
-options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Introduction
@@ -37,6 +24,7 @@ library(mapview)
 library(tidyverse)
 library(tigris)
 library(sf)
+library(xtable)
 
 ca_data <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/data/ca_data.shp')
 ```
@@ -102,6 +90,7 @@ We can look at a scatter plot of log median housing values v. log median househo
 The table below shows what was the maximum housing value in each year. From 2010 - 2014, the values have an upper-bound of $1,000,001. 
 
 ![](/Users/ivanpatel/Desktop/School/Senior Project/image1.png)
+
 And from 2015 - 2018, the upper-bound is $2,000,001. 
 Similarly, every year's max median household income by census tract also has an upper-bound of $250,001 
 
@@ -133,7 +122,5 @@ ca_data_2  %>% glimpse()
 ```
 
 
-```{r bib, include=FALSE}
-# create a bib file for the R packages used in this document
-knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
-```
+#### Correlation Matrix
+![](/Users/ivanpatel/Desktop/School/Senior Project/Corr_table.png)
