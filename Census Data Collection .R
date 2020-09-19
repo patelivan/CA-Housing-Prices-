@@ -60,13 +60,5 @@ write_sf(ca_data, 'ca_data.shp')
 # ttl__r__E - total.renter.occupied.housing.units.estimate
 # ttl__w___E - total.owner.occupied.housing.units
 
-# Glimpse the data and its Coordinate Reference System
-ca_data %>% glimpse()
-st_crs(ca_data) # North American Datum 1983. 
-
-
-
-
-
 
 
