@@ -100,15 +100,38 @@ We can look at a scatter plot of log median housing values v. log median househo
 
 ## An important thing to note about the scatter plots
 The table below shows what was the maximum housing value in each year. From 2010 - 2014, the values have an upper-bound of $1,000,001. 
-![](/Users/ivanpatel/Desktop/School/Senior Project/image1.png)
 
+![](/Users/ivanpatel/Desktop/School/Senior Project/image1.png)
 And from 2015 - 2018, the upper-bound is $2,000,001. 
 Similarly, every year's max median household income by census tract also has an upper-bound of $250,001 
 
-#### What types of problems can top-coding variables cause in linear regression?
+## Summary the data, and Creating the final data
+```{r, echo = F}
+ca_data %>% st_drop_geometry() %>% select(contains('estimate')) %>% 
+  summary()
 
-# Pair wise plots
-^[[Scatter Plot Matrix Dashboard](https://public.tableau.com/profile/ivan.patel#!/vizhome/ScatterPlotMatrix-HousingValuesandothervaribales-CACensusTracts2010-2018/Dashboard1?publish=yes)]
+```
+The summary shows that we must deal with the NA values. First, let's check whether or not it is safe to drop the NA values from the median.housing.value.estimate. We have 1880 missing values, and the data consists of 72,513 rows. Therefore, the proportion of rows for which the dependent variable is missing is 2.59%. I also removed missing values from room estimates and income estimates. For some reason, the median.year.built.estimate had two weird values, 0 and 18. Thus, I also removed them too. 
+
+Finally, I also added 2 new columns, the natural log of median housing values, and the natural log of median household income. 
+
+The final data consists of 67,809 rows, and 22 columns. 
+
+```{r, echo = F}
+ca_data_2 <- ca_data %>% 
+  filter(!is.na(median.housing.value.estimate), 
+         !is.na(median.household.income.estimate),
+         !is.na(median.number.rooms.estimate), 
+         median.year.built.estimate > 18) %>% 
+  
+  mutate(log_median.housing.value.estimate = log(median.housing.value.estimate),
+         log_median.household.income.estimate = log(median.household.income.estimate))
+
+st_crs(ca_data) # North American Datum 1983. 
+ca_data_2  %>% glimpse()
+
+```
+
 
 ```{r bib, include=FALSE}
 # create a bib file for the R packages used in this document
