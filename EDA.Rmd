@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Exploratory Data Analysis"
 author: "Ivan Patel"
 date: "9/19/2020"
 output: html_document
@@ -20,12 +20,12 @@ Housing value estimate will be my model's dependent or the response variable. I 
 ```{r, include=F, echo = F}
 library(tidycensus)
 library(stringr)
-library(mapview)
 library(tidyverse)
 library(tigris)
 library(sf)
-library(xtable)
-
+library(moderndive)
+library(skimr)
+library(ISLR)
 ca_data <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/data/ca_data.shp')
 ```
 
@@ -124,3 +124,16 @@ ca_data_2  %>% glimpse()
 
 #### Correlation Matrix
 ![](/Users/ivanpatel/Desktop/School/Senior Project/Corr_table.png)
+
+
+### Multiple Linear Regression 
+```{r}
+library(gt)
+model_data <- ca_data_2 %>% st_drop_geometry() %>% 
+  select(contains('estimate'), -median.household.income.estimate, -median.housing.value.estimate)
+
+model <- lm(data = model_data, log_median.housing.value.estimate ~ .)
+get_regression_table(model) %>% gt()
+
+```
+
