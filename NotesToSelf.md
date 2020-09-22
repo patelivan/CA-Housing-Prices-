@@ -1,12 +1,12 @@
 # Where is the data
-- In your dropbox 
+- In my dropbox 
 
 # Pending Tasks
 - Read about Fixed Effects
 
 # Description of each .R file
 
-###### Census Data Collection.R is 
+#### Census Data Collection.R is 
 - Using the Census API, it gathers data from the American Community Survey 5-year estimates for each CA census tracts from the year 2010 to 2018. 
   
   Here are the following variables:
@@ -35,10 +35,9 @@
   
   The goal of this scatter plot matrix is to check whether or not there is a linear relationship between median housing values and the independent variables, and whether or not the some independent variables are related with one another. 
   
- ###### Things to note:
- Median Housing value and Median Household Income are linearly related.
- Plot of median Housing value and year built appear to be random. 
- 
+#### EDA.rmd
+Contains the RMarkdown code used to create the html file found here: https://rpubs.com/patelivan74/664522
+
  
   
   
