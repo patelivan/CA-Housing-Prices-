@@ -1,23 +1,17 @@
 library(tidycensus)
 library(stringr)
-library(mapview)
 library(tidyverse)
 library(tigris)
 library(sf)
-
-Sys.getenv("CENSUS_API_KEY")
+library(skimr)
 
 # Searching for Household income variables
 v16 <- load_variables(year = 2018, dataset = 'acs5', cache = TRUE)
+
+# An example on how to search for the variables you are interested about.
+# Replace median household income with other variables such as population, and then choose the name.
 hh_income <- filter(v16, str_detect(label, fixed('median household income', 
                                                  ignore_case = T)))
-
-v16 %>% filter(str_detect(label, fixed('time', ignore_case = T))) %>% View()
-
-# B11011_004
-# B11011_005
-x <- get_acs(geography = 'tract', variables = c(aggregate_travel_time_to_work_minutes = 'B08013_001'),
-        state = "CA", survey = 'acs5', year = 2018, output = 'wide')
 
 # Getting the data from 2010 to 2018 
 ca_data <- map_df(2010:2018, function(x) {
@@ -38,18 +32,7 @@ ca_data <- map_df(2010:2018, function(x) {
     mutate(year = x)
 }) 
 
-# Changing the column names
-names(ca_data)[3:18] <- c("median.housing.value.estimate", "median.housing.value.moe",
-    "median.household.income.estimate", "median.household.income.moe",
-    "population.estimate", "population.moe", "total.owner.occupied.housing.units.estimate",
-    "total.owner.occupied.housing.units.moe", 'total.renter.occupied.housing.units.estimate', 
-    'total.renter.occupied.housing.units.moe',
-    'median.age.estimate','median.age.moe' ,'median.number.rooms.estimate', 'median.number.rooms.moe',
-    'median.year.built.estimate', 'median.year.built.moe'
-    )
-
-# Write the data to a shape file for easy access
-write_sf(ca_data, 'ca_data.shp')
+st_write(ca_data, 'ca_data.shp', driver="ESRI Shapefile")
 
 # md HSH E - median household income
 # md HSN E - median housing value
@@ -59,6 +42,3 @@ write_sf(ca_data, 'ca_data.shp')
 # popltn E - population
 # ttl__r__E - total.renter.occupied.housing.units.estimate
 # ttl__w___E - total.owner.occupied.housing.units
-
-
-
