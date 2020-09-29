@@ -3,6 +3,7 @@
 
 # Pending Tasks
 - Read about Fixed Effects
+- Upload the ca_data with the coastline distances to dropbox. Download it on the Mac, and use that in EDA.RMD as well as to build the model. Don't delete the original data.  
 
 # Description of each .R file
 
