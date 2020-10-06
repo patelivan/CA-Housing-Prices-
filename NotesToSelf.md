@@ -3,7 +3,11 @@
 
 # Pending Tasks
 - Read about Fixed Effects
-- Upload the ca_data with the coastline distances to dropbox. Download it on the Mac, and use that in EDA.RMD as well as to build the model. Don't delete the original data.  
+- Add Median Income estimate for county to each census tract - use that as your independent varibale instead of census tract median income.
+- Add a large city variable - categorical that identifies whether or not a county includes an MSE. 
+- Remove population.estimate from your linear model. 
+- In EDA.rmd, calculate the percentage of census tracts with missing housing values in a given county for a year. 
+- Check for every year that no one county has a very large number of missing census tracts. If it does not, then remove any missing tracts with missing values 
 
 # Description of each .R file
 
