@@ -1,0 +1,149 @@
+---
+title: "Linear Regression"
+author: "Ivan Patel"
+date: "10/1/2020"
+output: 
+  html_document: 
+    df_print: kable
+
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=F}
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(sf)
+library(mapview)
+library(readxl)
+library(moderndive)
+```
+
+Before proceeding with the linear regression, all the housing values exceeding $1,000,000 were changed to 
+$1,000,000. I did this because linear regression is very sensitive to outliers. 
+
+```{r, echo=FALSE, message=FALSE}
+# Read the model data 
+model_data<- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/Model/model.shp')
+
+names(model_data) <- c("C_GEOID", "T_GEOID", "NAME_tr",                           
+                       "year","NAME_county", "Coastal", 
+                       "median.housing.value.estimate",                           
+                       "population.estimate", "median.age.estimate",              
+                       "median.number.rooms.estimate",                       
+                       "married_couple_family_1_unit_structures.estimate",       
+                       "married_couple_family_2_or_more_unit_structures.estimate",
+                       "aggregate_travel_time_to_work_minutes.estimate", 
+                       "median.county.household.income.estimate", 
+                       "renter_occupied_perc", 
+                       "geometry")
+```
+
+
+```{r, echo=F}
+# Edit ca_final to build the model data -----------------------------------
+
+model_data$median.housing.value.estimate[model_data$median.housing.value.estimate > 1000000] <- 1000000
+
+model_data <- model_data %>%
+mutate(log_house_values_estimate = log(median.housing.value.estimate), 
+         log_county_income_estimate = log(median.county.household.income.estimate))
+
+# Remove the county names, tract name, the GEOID's and geometry 
+model_data <- model_data %>% st_drop_geometry() %>% 
+  select(-C_GEOID:-NAME_county,
+         -married_couple_family_2_or_more_unit_structures.estimate,
+         -married_couple_family_1_unit_structures.estimate,
+         -aggregate_travel_time_to_work_minutes.estimate,
+         -median.housing.value.estimate, 
+         -median.county.household.income.estimate, 
+         -population.estimate)
+```
+
+```{r}
+model <- lm(data = model_data, log_house_values_estimate ~ . + 
+              renter_occupied_perc * Coastal +
+              log_county_income_estimate * Coastal +
+              log_county_income_estimate * renter_occupied_perc)
+
+# Regression Results
+get_regression_table(model)
+get_regression_summaries(model)
+
+# Correlation between the variables - Hide lower triangle
+mcor <- model_data %>% select(median.age.estimate:log_county_income_estimate) %>% cor() %>% round(2)
+mcor[lower.tri(mcor, diag=T)] <- ''
+mcor <- as.data.frame(mcor)
+mcor
+```
+
+
+```{r}
+model_predictions <- get_regression_points(model) %>% select(ID, log_house_values_estimate,log_house_values_estimate_hat, residual) 
+
+par(mfrow = c(1,2))
+plot(density(model_predictions$log_house_values_estimate), frame = F, main = 'Actual House Values')
+plot(density(model_predictions$log_house_values_estimate_hat), frame = F, main = 'Predicted House Values')
+
+```
+
+## Checking for potential problems
+
+One key assumption of linear regression is that the mean of residuals is zero. 
+Since the mean of residuals is approximately zero, this assumption holds true for this model.
+
+```{r}
+mean(model_predictions$residual)
+```
+
+#### Non-linearity of the Data
+
+Residual plots are a useful graphical tool for identifying non-linearity. It will show no fitted discernible pattern. The presence of a pattern may indicate a problem with some aspect of the linear model.
+
+There appears to be a little pattern in the residuals below which suggests that the linear model is a good fit to the data. The red line through the scatterplot is also straight and horizontal. Thus, the linearity assumption is satisfied.
+
+```{r, echo=F}
+plot(model, which = 1)
+```
+
+#### Do the residuals follow a Normal Distribution?
+
+Using a QQ-plot, we can compare the residuals to “ideal” normal observations along the 45-degree line.
+
+There are several points below -2 with large residuals, and R automatically flagged them. Later, I identify what are those observations and consider whether or not we should remove them.  
+
+But a lot of points are also right on the line. DO you think it is fair to assume that normality holds here?
+
+```{r, echo=F}
+plot(model, which = 2)
+```
+
+#### Non-constant Variance of Error Terms
+
+The third plot is a scale-location plot (square rooted standardized residual vs. predicted value). This is useful for checking the assumption of homoscedasticity. 
+
+If the red line you see on your plot is flat and horizontal with equally and randomly spread data points, we have not violated the assumption.
+
+```{r, echo=F}
+plot(model, which = 3)
+```
+
+### Influential Points
+
+Influential outliers are of the greatest concern because they could alter the results, depending on whether they are included or excluded from the analysis
+
+We can identify the influential outliers by running a Bonferonni adjusted outlier test. The null for this test is that the observation is NOT an outlier.
+
+The test identified 10 influential outliers that we should consider removing. We can also check the observation's predictor variables to see if there is anything special about them. 
+
+```{r}
+car::outlierTest(model)
+model_data[c(63941, 47953, 59031, 40320, 18100, 40256, 24874, 34101, 47362, 36640), ]
+```
+
+
+
+
+

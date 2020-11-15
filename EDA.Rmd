@@ -2,109 +2,399 @@
 title: "Exploratory Data Analysis"
 author: "Ivan Patel"
 date: "9/19/2020"
-output: html_document
+output: 
+  html_document: 
+    df_print: kable
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Introduction
+### Introduction
 Before I can run a multiple linear regression on median housing values, I will explore, visualize, and understand my data. Before building any model, one has to make important decisions about missing values, and how to handle outliers. In my case, I must also check that the data meets all the assumptions of a linear regression. ^[[Assumptions of Linear regression](http://r-statistics.co/Assumptions-of-Linear-Regression.html)]
 
 I will search answers to my initial questions by visualizing, transforming, and modeling my data. I will also use what I learned to generate new questions about the data. The point of Exploratory Data Analysis is to uncovering the structure of my data, and ensure that it contains good information before making our model. 
 
-## Checking the distribution of housing values and median income
-Housing value estimate will be my model's dependent or the response variable. I suspect that its distribution is skewed to the right. 
-
 ```{r, include=F, echo = F}
-library(tidycensus)
-library(stringr)
+# Reading the data
 library(tidyverse)
-library(tigris)
-library(sf)
-library(moderndive)
+library(dplyr)
 library(skimr)
+library(sf)
+library(DT)
+library(readxl)
+library(moderndive)
+library(naniar)
+library(crosstalk)
+library(plotly)
+library(shiny)
+library(leaflet)
+library(tmap)
+library(tmaptools)
+library(tigris)
+library(reticulate)
 
-ca_data <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/CA Data/ca_data.shp')
+ca_data2 <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/Census/ca_data.shp')
+
+coastline_counties <- read_xlsx('/Users/ivanpatel/Desktop/School/Senior Project/Data/coastline-counties-list.xlsx')
+
+# Which counties are coastal and near the coast
+ca_coastline_counties <- coastline_counties %>% filter(`STATE NAME` == 'California')
+ca_coastline_counties <- ca_coastline_counties[, "COUNTY NAME", drop = T]
+near_coast_counties <- c('Trinity County', 'Lake County', 'Napa County')
+
 ```
 
-```{r, echo=F, fig.height=10, fig.width=13, ppi = 600}
+
+### Summary of the data 
+
+```{r, echo=F}
 # Changing the names
-names(ca_data)[3:24] <- c("median.housing.value.estimate", "median.housing.value.moe",
-    "median.household.income.estimate", "median.household.income.moe",
-    "population.estimate", "population.moe", "total.owner.occupied.housing.units.estimate",
-    "total.owner.occupied.housing.units.moe", 'total.renter.occupied.housing.units.estimate', 
-    'total.renter.occupied.housing.units.moe',
-    'median.age.estimate','median.age.moe' ,'median.number.rooms.estimate', 'median.number.rooms.moe',
-    'median.year.built.estimate', 'median.year.built.moe', 'married_couple_family_1_unit_structures.estimate', 
-    'married_couple_family_1_unit_structures.moe', 'married_couple_family_2_or_more_unit_structures.estimate', 
-    'married_couple_family_2_or_more_unit_structures.moe', 'aggregate_travel_time_to_work_minutes.estimate', 
-    'aggregate_travel_time_to_work_minutes.moe'
+names(ca_data2)[4:27] <- c("median.housing.value.estimate", "median.housing.value.moe",
+                          "population.estimate", "population.moe", 
+                          "total.owner.occupied.housing.units.estimate","total.owner.occupied.housing.units.moe", 
+                          'total.renter.occupied.housing.units.estimate', 'total.renter.occupied.housing.units.moe',
+                          'median.age.estimate','median.age.moe' ,
+                          'median.number.rooms.estimate', 'median.number.rooms.moe',
+                          'median.year.built.estimate', 'median.year.built.moe', 
+                          'married_couple_family_1_unit_structures.estimate', 'married_couple_family_1_unit_structures.moe', 
+                          'married_couple_family_2_or_more_unit_structures.estimate', 'married_couple_family_2_or_more_unit_structures.moe', 
+                          'aggregate_travel_time_to_work_minutes.estimate', 'aggregate_travel_time_to_work_minutes.moe', 
+                          'year', 
+                          'NAME_county', 
+                          "median.county.household.income.estimate",
+                          "median.county.household.income.moe"
+                          
 )
 
-
-# Histogram of housing values and median income
-hist(ca_data$median.housing.value.estimate, 
-     main = 'Histogram of housing value estimates by Census Tracts (2010 - 2018)', 
-     labels = T,
-     xlab = 'Values', ylab = 'Count')
-
-summary(ca_data$median.housing.value.estimate)
-```
-The histogram does show that housing value estimates is skewed to the right. Given the 75th percentile, about 25% of our observations are census tracts whose housing value estimate exceeds $589,600.
-
-Similarly, median household income by census tracts is also skewed to the right. 
-```{r, echo=F, fig.height=10, fig.width=13, ppi = 600}
-
-hist(ca_data$median.household.income.estimate, 
-     main = 'Median HH Income by Census Tracts (2010-2018)', 
-     labels = T, 
-     xlab = 'Household Income', ylab = 'Count')
-
-summary(ca_data$median.household.income.estimate)
+ca_data2 %>% select(contains('estimate')) %>% 
+  st_drop_geometry() %>% skim() 
 ```
 
-Thus, lets reduce the skewness of both variables by taking the natural log of estimates.
-```{r, fig.height=7, fig.width=11, echo=F}
-# Housing Values 
-hist(log(ca_data$median.housing.value.estimate), 
-     main = 'Histogram of Log housing value estimates by Census Tracts',
-     labels = T,
-     xlab = 'Log Values', ylab = 'Count')
+#### Does the data conform to our expectations?
 
-summary(log(ca_data$median.housing.value.estimate))
-```
-Although the histogram of the log estimate is slightly skewed to the left, the range did decrease significantly
+Per the United States Census Bureau, the maximum population of a census tract is 8000. ^[[Census Tracts](https://www2.census.gov/geo/pdfs/education/CensusTracts.pdf)]
 
-We can do the same log transformation to the median household income by census tract 
-```{r, fig.height=7, fig.width=11, echo=F}
-# Household Income
-hist(log(ca_data$median.household.income.estimate), 
-     main = 'Median HH Income by Census Tracts (2010-2018)', 
-     labels = T,
-     xlab = 'Log Household Income', ylab = 'Count')
-
-summary(log(ca_data$median.household.income.estimate))
+However, there are 3348 tracts whose population exceeds 8000. Here are the 5 most populous census tracts 
+```{r, echo=F}
+ca_data2 %>% st_drop_geometry() %>% 
+  filter(population.estimate > 8000) %>%
+  select(NAME_tr, population.estimate, year) %>% 
+  arrange(desc(population.estimate)) %>% head()
 ```
 
-We can look at a scatter plot of log median housing values v. log median household income to check linearity. ^[[Scatter Plot Dashboard ](https://public.tableau.com/profile/ivan.patel#!/vizhome/HoseholdValuevHouseholdIncomeforCACensusTracts2010-2018/Dashboard1?publish=yes). There are two charts on this dashboard. The top one shows the scatter plot of log housing values v log household income for a given year between 2010 and 2018. The bottom chart is a plot of just housing values v household income for a given year.]
+### Missing Values
 
-## An important thing to note about the scatter plots
-The table below shows what was the maximum housing value in each year. From 2010 - 2014, the values have an upper-bound of $1,000,001. 
+As we saw in the data summary section, there are 1880 missing values in the median housing value estimate. We can quantify how many census tracts do not have housing values by year.
 
-![](/Users/ivanpatel/Desktop/School/Senior Project/image1.png)
+```{r, echo = F, message=F}
+ca_data_missing <- ca_data2 %>% filter(is.na(median.housing.value.estimate)) 
 
-And from 2015 - 2018, the upper-bound is $2,000,001. 
-Similarly, every year's max median household income by census tract also has an upper-bound of $250,001 
-
-## Summary the data, and Creating the final data
-```{r, echo = F}
-ca_data %>% select(contains('estimate')) %>% st_drop_geometry() %>% skim()
+# What is the percentage of tracts that have a missing housing value for each year?
+ca_data_missing %>% st_drop_geometry() %>% 
+  group_by(year) %>% summarize(housing_values_missing = n(), prc_missing = (n() / 8057) * 100)
 ```
 
-The summary shows that we must deal with the NA values. First, let's check whether or not it is safe to drop the NA values from the median.housing.value.estimate. We have 1880 missing values, and the data consists of 72,513 rows. Therefore, the proportion of rows for which the dependent variable is missing is 2.59%. I also removed missing values from room estimates and income estimates. For some reason, the median.year.built.estimate had two weird values, 0 and 18. Thus, I also removed them too. 
+For a given year, there are 8057 census tracts. Thus, pct_missing is housing_values_missing / 8057 * 100, and it tells us that for a particular year, what percentage of census tracts don't have a housing value estimate. 
 
-Finally, I also added 2 new columns, the natural log of median housing values, and the natural log of median household income. 
+For census tracts with missing housing values, I suspected that other estimates might be missing too. 
 
-The final data consists of 67,809 rows, and 22 columns. 
+The interactive bar chart below helps us **visualize the percentage of missing values for each predictor estimate for census tracts with a missing housing value by year**. Checking every year will reveal that over 80% of the tracts in a year do not have room and year built estimates. While around 40% do not have income estimates. Estimates with no bars have no missing values.
+
+```{r, echo = F, warning=FALSE, fig.width=10}
+ca_data_missing %>% st_drop_geometry() %>% 
+  select(contains('estimate'), year) %>% 
+  group_by(year) %>% miss_var_summary() %>% ungroup() %>% 
+  filter(pct_miss != 0) %>% 
+  plot_ly(x = ~year, y = ~pct_miss, type = 'scatter', mode = 'lines',color = ~variable) 
+
+```
+
+This means that for tracts with not housing value, it is very likely that those tracts also don't have room and year.built estimates. Moreover, a good chunk of those tracts won't also have income and aggregate travel time to work estimates. 
+
+The next question I asked is which county has the most tracts with a missing housing value. Answering this will help us figure out whether or not the census tracts are missing at random, or in particular counties.
+
+```{r, message=FALSE,echo=F}
+# Total tracts in a given county-year
+total_tracts_by_county_year <- ca_data2 %>%  
+  st_drop_geometry() %>% 
+  group_by(year, NAME_county) %>% 
+  summarize(num_of_tracts = n()) %>% 
+  arrange(desc(num_of_tracts))
+
+total_tracts_by_county_year %>% head()
+```
+
+
+```{r, message=FALSE, echo=F}
+# What perc of census tracts in a given county-year is missing?
+
+## Getting the number of missing tracts in a given county-year
+ca_data_missing %>% st_drop_geometry() %>% 
+  group_by(year, NAME_county) %>% 
+  summarize(num_of_tracts_with_missing_house_values = n()) %>% 
+  arrange(desc(num_of_tracts_with_missing_house_values)) %>% ungroup() %>% 
+  
+  # Inner joining the number of missing tracts with total_tracts_by_county_year
+  inner_join(total_tracts_by_county_year, by = c('year' = 'year','NAME_county' = 'NAME_county')) %>% 
+  mutate(perc_of_missing_tracts = (num_of_tracts_with_missing_house_values / num_of_tracts) * 100) %>% 
+  arrange(year, desc(perc_of_missing_tracts)) %>% DT::datatable()
+```
+
+The above interactive table shows that the county with the highest percentage of missing census tracts in any given year is Del Norte. But given that this number is not greater than 12.5 % is a big relief. Therefore, no county has a significant portion of its census tracts missing. 
+
+Going through the table, I noticed that the percent missing values for a given county across all the years (2010 - 2018) stays about the same. For example, about 3.3% to 4.7% of tracts for all LA county census tracts from 2010 to 2018 don't have a median housing value. 
+This tells me that maybe for a given county the same group of census tracts have a missing median housing value across all the years. 
+
+The map below shows that this is indeed the case.
+
+```{r, echo = F, warning=FALSE, message=FALSE, fig.width=10, fig.height=10}
+# Making a map of the missing tracts. 
+# This check is to ensure that the missing tracts are randomly distributed. 
+tmap_mode('plot')
+
+ca_data_missing  %>%
+tm_shape() + tm_polygons('NAME_county', legend.show = FALSE) +
+tm_facets(by = 'year')
+```
+
+We can see that the southern California tracts with a missing median housing value in 2010 are the same tracts with a missing value for the remaining years. This is also holds true for the northern CA tracts. 
+
+The map also shows that the missing census tracts are not heavily concentrated in one area.
+Given what we have uncovered about the missing values, it is safe to remove all missing values from all the columns. 
+
+## Preparing the data for Linear Regression 
+
+```{r, echo=F}
+# Identifying which census tracts are in coastal counties, near coastal counties, or not in coastal counties
+
+# Creating a new variable coastal - Categorical
+ca_data2 <- ca_data2 %>%
+  mutate(Coastal = case_when(
+    str_detect(NAME_county, paste(ca_coastline_counties, collapse = "|")) ~ 'Coastal',
+    str_detect(NAME_county, paste(near_coast_counties, collapse = "|")) ~ 'Near Coastal',
+    TRUE ~ 'Not Coastal'
+  ))
+
+# Let's prepare the data we will feed our model
+model_data <- ca_data2 %>% 
+              filter(!is.na(median.housing.value.estimate), 
+                     !is.na(median.number.rooms.estimate), 
+                     !is.na(aggregate_travel_time_to_work_minutes.estimate)) %>%
+  
+  mutate(total.occupied = total.owner.occupied.housing.units.estimate + total.renter.occupied.housing.units.estimate, 
+         renter_occupied_perc = total.renter.occupied.housing.units.estimate / total.occupied) %>% 
+  
+  select(C_GEOID:NAME_tr, year, NAME_county, Coastal, contains('estimate'), 
+         renter_occupied_perc, 
+         -median.year.built.estimate, 
+         -total.owner.occupied.housing.units.estimate, 
+         -total.renter.occupied.housing.units.estimate)
+```
+
+```{r, echo=F}
+(nrow(model_data) / nrow(ca_data2)) * 100
+model_data %>% st_drop_geometry() %>% skim()
+```
+
+
+#### Correlation Matrix
+
+The correlation coefficients between different sets of variables can help us see whether or not any independent variables are correlated to each other. We will also explore the distributions of important variables of our data. 
+
+```{python, echo=F}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import shapefile
+
+# Reading the shapefile and converting it into a dataframe
+model_data = shapefile.Reader('/Users/ivanpatel/Desktop/School/Senior Project/Data/Model/model.shp')
+fields = [x[0] for x in model_data.fields][1:]
+records = model_data.records()
+shps = [s.points for s in model_data.shapes()]
+model_data = pd.DataFrame(columns=fields, data=records)
+model_data = model_data.assign(coords=shps)
+
+# Changing the column names to something more meaningful
+# Changing the column names to something more meaningful
+model_data.columns = ["C_GEOID", "T_GEOID","NAME_tr", "year", "NAME_county","Coastal", "housing_value", "population","median.age", "median.rooms", "1_unit_structures",
+ "2_or_more_unit_structures", "ag_travel_time_to_work",
+ "county.hh.income", 'renter_occupied_perc', "geometry"
+]
+# Selecting only the estimates and other important columns
+model_data2 = model_data.loc[:, ["year", "NAME_county","Coastal", "housing_value",
+"median.age", "median.rooms", "1_unit_structures",
+ "ag_travel_time_to_work","county.hh.income", 'renter_occupied_perc']
+]
+
+plt.figure(figsize = (13,10))
+sns.heatmap(model_data2.corr(), annot = True)
+```
+
+
+#### Distribution of housing values by coastal group. 
+
+```{r, echo=F}
+# Density plot of median.housing.value.estimate by coastal group
+model_data %>% st_drop_geometry() %>% 
+  ggplot(aes(x = median.housing.value.estimate, fill = Coastal)) +
+  geom_density(alpha=0.4) + 
+  scale_x_continuous(labels = scales::dollar_format())
+```
+
+Not surprisingly, housing prices in coastal counties are heavily skewed to the right, and the distribution has three peaks. Compared to not coastal, near coastal has a higher mean and is also skewed to the right due to outliers. One way I will deal the skewness is it to take the natural log of the housing prices, and make that my dependent variable. 
+
+What's interesting is that the all the outliers occurred beginning 2015. Why is that?
+
+```{r, echo=F}
+ggplot(model_data, aes(x = year, y = median.housing.value.estimate, group = year)) + 
+  geom_boxplot() + scale_y_continuous(labels = scales::dollar_format()) +
+  labs(x = 'Year', y = 'Housing Values')
+```
+
+One can also check where are these expensive homes located.
+
+```{r, echo = F, warning=FALSE, message=FALSE, fig.width=10, fig.height=13}
+model_data %>% filter(median.housing.value.estimate >= 1000000, year >= 2015) %>% 
+  tm_shape() + 
+  tm_polygons('NAME_county', legend.show = FALSE) +
+  tm_facets(by = 'year')
+```
+
+Most of these expensive homes are in Southern CA's LA, Orange, and San Diego Counties. In northern CA, most of the expensive homes are in the SF Bay area, Santa Clara county, Marin County, and the Palo Alto/Stanford region. Notice the growth in housing values from 2015 to 2018 in SF Bay Area. The number of census tracts with a median housing values over $1 million dollars grew in Northern CA. 
+
+This trend could have happened for a variety of reasons; builders built expensive homes in those tracts due to increase demand from wealthy people, or new housing construction stayed about the same but median prices rose quickly. 
+
+There are also several urban economics explanation for why we expensive homes are located in such census tracts. We will explore those reasons later when discussing public policy and urban economics housing theory. 
+
+The correlation matrix shows a positive relationship between county income and housing values. This makes sense as a county with a high median income is full of residents that can afford to buy expensive homes. 
+
+We can visualize the relationship between the two variables by coastal using a scatterplot. 
+
+```{r, echo=F}
+model_data %>% st_drop_geometry() %>% 
+  ggplot(aes(x = median.county.household.income.estimate, y = median.housing.value.estimate, color = Coastal)) +
+  geom_point(alpha = 0.2)  +
+  facet_grid(Coastal~.) +
+  scale_y_continuous(labels = scales::dollar_format())
+
+```
+
+One very important insight that I uncovered from the above plot is that most of the census tracts are in coastal counties. Precisely, 69.50% of the total observation from 2010-2018 are census tracts in coastal counties. 
+
+```{r, echo=FALSE}
+table(model_data$Coastal)/nrow(model_data)
+```
+
+This is because 26.5 million Californians (67% of the population) live in coastal counties. Also notice that whenever a county's median income exceeds $80,000, we can easily predict that the county is a coastal county which will have very expensive homes. 
+
+Therefore, suppose that a coastal county increases the effectiveness of county median income coefficient on housing values. In that case, we can extend the model by adding an interaction term between median county income and the coastal variable.
+
+
+```{r, echo=F}
+# Does Renter occupied percentage differ by county?
+model_data %>% st_drop_geometry() %>% 
+  group_by(year, Coastal) %>% summarize(mean_renter_perc = mean(renter_occupied_perc)) %>% 
+  ggplot(aes(x = year, y = mean_renter_perc, color = Coastal)) +
+  geom_line()
+```
+
+Before proceeding with the linear regression, all the housing values exceeding $1,000,000 were changed to 
+$1,000,000. I did this because linear regression is very sensitive to outliers. 
+
+```{r, echo=F}
+# Edit ca_final to build the model data -----------------------------------
+model_data$median.housing.value.estimate[model_data$median.housing.value.estimate > 1000000] <- 1000000
+model_data <- model_data %>% 
+  mutate(log_house_values_estimate = log(median.housing.value.estimate), 
+         log_county_income_estimate = log(median.county.household.income.estimate))
+
+# Remove the county names, tract name, the GEOID's and geometry 
+model_data <- model_data %>% st_drop_geometry() %>% 
+  select(-C_GEOID:-NAME_county, -married_couple_family_2_or_more_unit_structures.estimate, 
+         -median.housing.value.estimate, 
+         -median.county.household.income.estimate, 
+         -population.estimate)
+
+# Let's check which variables the model data contains
+model_data %>% names()
+
+model <- lm(data = model_data, log_house_values_estimate ~ . + 
+              renter_occupied_perc * Coastal +
+              log_county_income_estimate * Coastal +
+              log_county_income_estimate * renter_occupied_perc)
+```
+
+
+```{r}
+get_regression_table(model)
+get_regression_summaries(model)
+#Hide lower triangle
+mcor <- model_data %>% select(median.age.estimate:log_county_income_estimate) %>% cor() %>% round(2)
+mcor[lower.tri(mcor, diag=T)] <- ''
+mcor <- as.data.frame(mcor)
+mcor
+```
+
+
+```{r}
+model_predictions <- get_regression_points(model) %>% select(ID, log_house_values_estimate,log_house_values_estimate_hat, residual) 
+
+par(mfrow = c(1,2))
+plot(density(model_predictions$log_house_values_estimate), frame = F, main = 'Actual House Values')
+plot(density(model_predictions$log_house_values_estimate_hat), frame = F, main = 'Predicted House Values')
+
+```
+
+## Checking for potential problems
+
+One key assumption of linear regression is that the mean of residuals is zero. 
+Since the mean of residuals is approximately zero, this assumption holds true for this model.
+
+```{r}
+mean(model_predictions$residual)
+```
+
+#### Non-linearity of the Data
+
+Residual plots are a useful graphical tool for identifying non-linearity. It will show no fitted discernible pattern. The presence of a pattern may indicate a problem with some aspect of the linear model.
+
+There appears to be a little pattern in the residuals below which suggests that the linear model is a good fit to the data. The red line through the scatterplot is also straight and horizontal. Thus, the linearity assumption is satisfied.
+
+```{r, echo=F}
+plot(model, which = 1)
+```
+
+#### Do the residuals follow a Normal Distribution?
+
+Using a QQ-plot, we can compare the residuals to “ideal” normal observations along the 45-degree line.
+
+There are several points below -2 with large residuals, and R automatically flagged them. Later, I identify what are those observations and consider whether or not we should remove them.  
+
+But a lot of points are also right on the line. DO you think it is fair to assume that normality holds here?
+
+```{r, echo=F}
+plot(model, which = 2)
+```
+
+#### Non-constant Variance of Error Terms
+
+The third plot is a scale-location plot (square rooted standardized residual vs. predicted value). This is useful for checking the assumption of homoscedasticity. 
+
+If the red line you see on your plot is flat and horizontal with equally and randomly spread data points, we have not violated the assumption.
+
+```{r, echo=F}
+plot(model, which = 3)
+```
+
+
+```{r, echo=F}
+plot(model, which = 5)
+
+```
+
+
+

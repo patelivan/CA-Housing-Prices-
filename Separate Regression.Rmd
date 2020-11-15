@@ -1,0 +1,179 @@
+---
+title: "Regression - Separate Years"
+author: "Ivan Patel"
+date: "10/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=F}
+# Reading the data
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(sf)
+library(mapview)
+library(readxl)
+library(moderndive)
+library(psych)
+library(lmtest)
+library(AER)
+library(stargazer)
+```
+
+
+```{r, echo=F, message=F}
+model_data<- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/Model/model.shp')
+names(model_data) <- c("C_GEOID", "T_GEOID", "NAME_tr",                                                 
+                       "year","NAME_county", "Coastal", 
+                       "median.housing.value.estimate",                           
+                       "population.estimate", "median.age.estimate",                                 
+                       "median.number.rooms.estimate",                       
+                       "married_couple_family_1_unit_structures.estimate",       
+                       "married_couple_family_2_or_more_unit_structures.estimate",
+                       "aggregate_travel_time_to_work_minutes.estimate", 
+                       "median.county.household.income.estimate", 
+                       "renter_occupied_perc", 
+                       "geometry")
+```
+
+```{r, echo=F, message=F}
+# Filters for years 2010 to 2014, mutate log estimates, drop the geometry
+ols_model_2010_2014 <- model_data %>% filter(year %in% c(2010,2011,2012,2013,2014)) %>% 
+  mutate(log_house_values_estimate = log(median.housing.value.estimate), 
+         log_county_income_estimate = log(median.county.household.income.estimate)) %>% 
+  st_drop_geometry()
+  
+  # Removes the county names, tract name, GEOID's and other unnecessary columns
+ols_model_2010_2014 <- ols_model_2010_2014 %>%  select(-C_GEOID:-NAME_county, 
+         -married_couple_family_2_or_more_unit_structures.estimate, 
+         -married_couple_family_1_unit_structures.estimate, 
+         -aggregate_travel_time_to_work_minutes.estimate, 
+         -median.housing.value.estimate, 
+         -median.county.household.income.estimate, 
+         -population.estimate)
+
+# Filters for years 2015 to 2018, mutate log estimates, drop the geometry
+ols_model_2015_2018 <- model_data %>% filter(year %in% c(2015,2016,2017,2018)) %>% 
+  mutate(log_house_values_estimate = log(median.housing.value.estimate), 
+         log_county_income_estimate = log(median.county.household.income.estimate)) %>% 
+  st_drop_geometry()
+  
+  # Removes the county names, tract name, GEOID's and other unnecessary columns
+ols_model_2015_2018 <- ols_model_2015_2018 %>% select(-C_GEOID:-NAME_county, 
+         -married_couple_family_2_or_more_unit_structures.estimate, 
+         -married_couple_family_1_unit_structures.estimate, 
+         -aggregate_travel_time_to_work_minutes.estimate, 
+         -median.housing.value.estimate, 
+         -median.county.household.income.estimate, 
+         -population.estimate)
+```
+
+## Visualizing the variables: 2010-2014
+
+```{r, message=F}
+# Pairs Plot
+ols_model_2010_2014 %>% 
+  select(median.age.estimate:renter_occupied_perc, log_county_income_estimate, 
+         log_house_values_estimate) %>% 
+
+  pairs.panels(method = "pearson", # correlation method
+             hist.col = "#00AFBB"
+)
+```
+
+#### Why Heteroskedasticty will be an issue 
+
+The last row of the above plot is such that log house values are on the y-axis, and the other variables are on the x-axis. 
+
+Looking at the scatterplots of log house values v. median age, and log house values v. median rooms, the variance in house values decreases as age and rooms increases. In contrast, the variance in house values increases and log county income increases. 
+
+I also believe that the same pattern holds for 2015:2018
+
+```{r, message=F}
+ols_model_2015_2018 %>% 
+  select(median.age.estimate:renter_occupied_perc, log_county_income_estimate, 
+         log_house_values_estimate) %>% 
+  
+  pairs.panels(method = "pearson", # correlation method
+               hist.col = "#00AFBB"
+  )
+```
+
+To make accurate inferences, I will be using Huber-White robust standard errors for both models. 
+
+Finally, I also looked at boxplots of all other variables with Coastal as it is a categorical column with three possible values: Coastal, Near Coastal, and Not Coastal.
+
+```{r, fig.height=9}
+# Boxplot of Coastal and other variables
+par(mfrow=c(2,3))
+boxplot(data=ols_model_2010_2014, median.age.estimate~Coastal, ylab='Age', main='2010-2014')
+boxplot(data=ols_model_2010_2014, median.number.rooms.estimate~Coastal, ylab='Rooms')
+boxplot(data=ols_model_2010_2014, renter_occupied_perc~Coastal, ylab='Renter Perc')
+boxplot(data=ols_model_2010_2014, log_house_values_estimate~Coastal, ylab='House Values')
+boxplot(data=ols_model_2010_2014, log_county_income_estimate~Coastal, ylab='County Income')
+```
+
+```{r, fig.height=9}
+par(mfrow=c(2,3))
+boxplot(data=ols_model_2015_2018, median.age.estimate~Coastal, ylab='Age', main='2015-2018')
+boxplot(data=ols_model_2015_2018, median.number.rooms.estimate~Coastal, ylab='Rooms')
+boxplot(data=ols_model_2015_2018, renter_occupied_perc~Coastal, ylab='Renter Perc')
+boxplot(data=ols_model_2015_2018, log_house_values_estimate~Coastal, ylab='House Values')
+boxplot(data=ols_model_2015_2018, log_county_income_estimate~Coastal, ylab='County Income')
+
+```
+
+For both models, it makes a ton of sense to include an interaction term between coastal and renter occupied percentage, as well as an interaction between coastal and county income.
+
+Finally, I expect influential values to play a role in biasing the regression coefficients. We will check the cooks's distance for influential values. 
+
+# Let's run the Regression: 2010:2014
+
+```{r}
+model_2010_2014 <- lm(data = ols_model_2010_2014, log_house_values_estimate ~ . + 
+                        renter_occupied_perc * Coastal +
+                        log_county_income_estimate * Coastal +
+                        log_county_income_estimate * renter_occupied_perc)
+```
+
+Although the standard errors are different, the significance of each variable did not change
+
+```{r}
+model_2015_2018 <- lm(data = ols_model_2015_2018, log_house_values_estimate ~ . + 
+                        renter_occupied_perc * Coastal +
+                        log_county_income_estimate * Coastal +
+                        log_county_income_estimate * renter_occupied_perc)
+```
+
+Outliers may causing a high adjusted R2, Robust Errors are presented below. 
+```{r}
+stargazer(coeftest(model_2010_2014, vcov. = vcovHC, type='HC1'), 
+          coeftest(model_2015_2018, vcov. = vcovHC, type='HC1'),
+          type='text')
+```
+
+
+## OLS Assumptions Plots: 2010:2014
+
+```{r, fig.height=9}
+par(mfrow = c(2, 2))
+plot(model_2010_2014)
+```
+
+## OLS Assumptions Plots: 2015:2018
+
+```{r, fig.height=9}
+par(mfrow = c(2, 2))
+plot(model_2015_2018)
+```
+
+
+
+
+
+
+
