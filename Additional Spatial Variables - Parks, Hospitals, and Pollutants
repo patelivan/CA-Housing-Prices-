@@ -1,0 +1,62 @@
+library(tidyverse)
+library(dplyr)
+library(sf)
+library(tidycensus)
+library(tmap)
+library(mgcv)
+
+# Reads the data and assigns readable column names 
+
+model_data <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/Model/model.shp')
+names(model_data) <- c("C_GEOID", "T_GEOID", "NAME_tr", "year","NAME_county", "Coastal", 
+                       "median.housing.value.estimate", "population.estimate", 
+                       "median.age.estimate", "median.number.rooms.estimate",                       
+                       "married_couple_family_1_unit_structures.estimate",       
+                       "married_couple_family_2_or_more_unit_structures.estimate",
+                       "aggregate_travel_time_to_work_minutes.estimate", 
+                       "median.county.household.income.estimate","renter_occupied_perc", 
+                       "geometry")
+
+# Classifying the Near Coastal Counties as Coastal
+model_data <- model_data %>% mutate(Coastal = case_when(
+  str_detect(NAME_county, paste(ca_coastline_counties, collapse = "|")) ~ 'Coastal',
+  TRUE ~ 'Not Coastal'))
+
+# Filter for 2018. 
+model_data_2018 <- model_data %>% filter(year==2018)
+
+# Reading the explanatory distance features, changing their crs (to match model data's crs), 
+# and plotting them --------
+
+# Model data's coordinate reference system.
+the_crs <- st_crs(model_data)
+
+# Link - https://www.parks.ca.gov/?page_id=29682 
+park_entry_points <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/ParkEntryPoints/ParkEntryPoints.shp')
+park_entry_points <- st_transform(park_entry_points, crs=the_crs)
+plot(park_entry_points['parkName'])
+
+# Link - https://gis.data.ca.gov/datasets/e9476c422f0842a7a38652aaf4c7597c_0?geometry=-123.627%2C34.062%2C-115.717%2C35.640
+ca_schools <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/CSCD_2018.gdb')
+ca_schools <- st_transform(ca_schools, crs=the_crs)
+tm_shape(ca_schools) + tm_dots(col='Level')
+
+# Link - https://hifld-geoplatform.opendata.arcgis.com/datasets/geoplatform::hospitals?geometry=91.417%2C-16.829%2C-122.333%2C72.120
+hospitals <- st_read('/Users/ivanpatel/Desktop/School/Senior Project/Data/Hospitals/Hospitals.shp')
+hospitals <- st_transform(hospitals, crs=the_crs)
+ca_hospitals <- hospitals %>% filter(STATE =='CA') # filter for hospitals in CA. 
+plot(ca_hospitals['FID'])
+
+# We will have to do an inner join.
+model_data_20182 <- model_data_2018 # Create a copy of 2018 Housing data
+
+# Convert C_GEOID to numeric, unite it with T_GEOID to create a tract if and convert the 
+# new col to numeric. 
+model_data_20182$C_GEOID <- as.numeric(model_data_20182$C_GEOID) 
+model_data_20182 <- model_data_20182 %>% unite('tract_id', c(C_GEOID, T_GEOID), sep='')
+model_data_20182$tract_id <- as.numeric(model_data_20182$tract_id)
+
+# Left Join and get rid of the other columns
+model_data_20182 <- model_data_20182 %>% left_join(ces, by = c('tract_id'='tract'))
+model_data_20182 <- model_data_20182 %>% filter(!is.na(unemp))
+tm_shape(model_data_20182) + tm_polygons(col='PollutionS')
